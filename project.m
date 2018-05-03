@@ -1,18 +1,22 @@
-% run by calling [p,xtraj,utraj,v,x0] = project
-% warm-start with previous result by calling project(xtraj,utraj)
+% To use this file:
+%   move file into ~/drake/drake/examples/Pendulum
+%   open Matlab and run addpath_drake
+%   cd into the ~/drake/drake/examples/Pendulum
+%   run by calling [p,xtraj,utraj,v,x0] = project;
+%   warm-start with previous result by calling project(xtraj,utraj);
 function [p,xtraj,utraj,v,x0] = project(xtraj_init, utraj_init)
+% create plant
 options.replace_cylinders_with_capsules = false;
 options.wrap_flag = [true;false]; % necessary?
 p = PlanarRigidBodyManipulator('Pendulum.urdf',options);
 p = p.setInputLimits(-10,10);
 
-N = 31
-T = 2
+N = 31  % number of knot points
+T = 2   % max duration allowed
+x0 = [pi*rand(); 10*rand()] % random start point
+xf = [pi*rand(); 10*rand()] % random goal point
 
-% [theta thetadot]
-x0 = [pi*rand();10*rand()]
-xf = [pi*rand();10*rand()]
-
+% initial trajectory guess
 t_init = linspace(0,T,N);
 if nargin < 2
     x_init_vec = zeros(2,N);
@@ -35,27 +39,29 @@ traj_opt = traj_opt.addStateConstraint(ConstantConstraint(xf),N);
 traj_opt = traj_opt.setSolver('fmincon');
 traj_opt = traj_opt.setSolverOptions('fmincon','Algorithm','sqp');
 
+% NOT NEEDED:
 %invertedConstraint = FunctionHandleConstraint(0,0,2,@(x) final_state_con(p,x),1);
 %traj_opt = traj_opt.addStateConstraint(invertedConstraint,N);
 
+% run DIRCOL
 tic
 [xtraj,utraj,z,F,info] = traj_opt.solveTraj(t_init,traj_init);
 toc
 
+% visualize trajectory
 v = p.constructVisualizer;
 v.axis = [-1 1 -1 1];
 v.playback(xtraj)
 
-% get the state: xtraj.eval(T) or ppval(xtraj, T)
+% extracts states along trajectory
 states = zeros(2,N);
 for i = 1:N
     states(:,i) = xtraj.eval(xtraj.pp.breaks(i));
 end
 
-% draw it
+% draw trajectory
 world_bounds_th = [-pi,pi];
 world_bounds_thdot = [-10,10];
-
 figure(1); clf; hold on;
 axis([world_bounds_th, world_bounds_thdot]);
 plot(states(1,1),states(2,1),'bo','MarkerFaceColor','b','MarkerSize',5);
@@ -69,7 +75,7 @@ for i=2:N
 end
 axis([world_bounds_th, world_bounds_thdot]);
 
-%[~,dcon] = final_state_con(p,xf)
+% NOT USED: [~,dcon] = final_state_con(p,xf)
 end
 
 % f = scalar cost
