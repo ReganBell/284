@@ -17,7 +17,7 @@ goal_reached_dist = 0.25;
 sample_dot = false;
 
 global net;
-load('dircol_net_akshay_ktrimmed.mat');
+load('dircol_net_full_akshay_10TL.mat');
 global distcounter;
 distcounter = 0;
 
@@ -50,7 +50,7 @@ while ~goal_reached
 %     plot(x_nearest(1), x_nearest(2), 'b.', 'MarkerSize', 5);
    
     % Extend tree toward sample
-    x_new = extendEuclidean(x_nearest, x_rand);
+    x_new = extend(x_nearest, x_rand);
 %     delete(new_dot);
 %     plot(x_new(1), x_new(2), 'b.', 'MarkerSize', 5);
     
@@ -106,17 +106,17 @@ function [x_nearest, i_nearest] = nearest(x_rand, S, V)
     
     for k = 1:n
         x_k = V(:, k);
-        dists(k) = dist(x_rand, x_k, S);
+        dists(k) = dist(x_k, x_rand, S);
 %         dists(k) = rand();
     end
-    [min_dists, i_nearest] = min(dists);
+    [~, i_nearest] = min(dists);
     x_nearest = V(:, i_nearest);
 end
 
 % Extend the tree from x_0 toward x
 % Linearize around x, run that LQR policy for 0.1 seconds
 % Return point x_new: where you ended up
-function x_new = extend(x_0, x)
+function x_new = extendLQR(x_0, x)
     [K, ~] = LQR(x);
     x_bar = x_0 - x;
     u = -K * x_bar;
@@ -127,28 +127,20 @@ end
 
 % returns the point that is closest (by Euclidean distance) to xy and can
 % be reached starting from closest_point applying constant input torque
-% between -5 and 5 for 0.1 seconds
-function new_vert = extendEuclidean(closest_vert, xy)
-    [~,x] = ode45(create_odefun(-5),[0 0.1], closest_vert);
+% between -10 and 10 for 0.1 seconds
+function new_vert = extend(closest_vert, xy)
+    [~,x] = ode45(create_odefun(-10),[0 0.1], closest_vert);
     new_vert = x(end,:)';
-    min_dist = euclidean_distance(new_vert, xy);
-    for u=-4.5:0.5:5
+    min_dist = dist(new_vert, xy);
+    for u=-9:10
         [~,x] = ode45(create_odefun(u),[0 0.1], closest_vert);
         vert = x(end,:)';
-        d = euclidean_distance(vert, xy);
+        d = dist(vert, xy);
         if d < min_dist
             new_vert = vert;
             min_dist = d;
         end
     end
-end
-
-% x, y are 2x1 vectors. returns the wraparound euclidean distance btwn them
-function d = euclidean_distance(a, b)
-    x_diff = abs(a(1) - b(1));
-    y_diff = abs(a(2) - b(2));
-    x_diff = min(x_diff, 2*pi - x_diff);    % handle wraparound
-    d = sqrt(x_diff^2 + y_diff^2);
 end
 
 function I_near = near(x_new, S_new, i_nearest, V)
@@ -275,7 +267,6 @@ end
 function d = dist(a, b, S)
     nn = true;
     if nn
-%         d = euclidean_distance(a, b);
         global net;
         d = sim(net, [a; b]);
         if d < 0
