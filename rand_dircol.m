@@ -43,20 +43,15 @@ function [xtraj,utraj,x0,pairs,dists] = rand_dircol(p, traj_opt, N, T, x0, xf, x
     end
 
     cost = u .^ 2;
-    pairs = zeros(4, 465);
-    dists = zeros(1, 465);
-    m = 1;
-    for i = 1:N
-        for k = i+1:N
-            pairs(:, m)  = [states(:, i); states(:, k)];
-            dists(m) = sum(cost(i:k));
-            m = m + 1;
-        end
-    end    
+    pairs = zeros(4, 1);
+    dists = zeros(1, 1);
+    pairs(:, 1)  = [states(:, 1); states(:, N)];
+    dists(1) = sum(cost(:)) * (T/N);
+%     draw_traj(states, p, xtraj);
     % NOT USED: [~,dcon] = final_state_con(p,xf)
 end
 
-function draw_traj(states)
+function draw_traj(states, p, xtraj)
     % visualize trajectory
     v = p.constructVisualizer;
     v.axis = [-1 1 -1 1];
@@ -68,7 +63,7 @@ function draw_traj(states)
     figure(1); clf; hold on;
     axis([world_bounds_th, world_bounds_thdot]);
     plot(states(1,1),states(2,1),'bo','MarkerFaceColor','b','MarkerSize',5);
-    for i=2:N
+    for i=2:31
         prev_pt = states(:,i-1);
         new_pt  = states(:,i);
         plot(new_pt(1),new_pt(2),'bo','MarkerFaceColor','b','MarkerSize',5);
