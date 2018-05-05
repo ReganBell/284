@@ -1,21 +1,23 @@
-quadrant = 1;
+quadrant = 2;
 output_filename = sprintf('quadrant_%d.mat',quadrant);
 N = 31;         % number of knot points
 T = 2;          % max duration allowed
 K = 250;        % number of iterations
 u_limit = 5;    % input limit
-[p, traj_opt] = dircol_setup(N, T, u);
+[p, traj_opt] = dircol_setup(N, T, u_limit);
 
-if i == 1
+theta_bounds = [];
+thetadot_bounds = [];
+if quadrant == 1
     theta_bounds = [0,pi];
     thetadot_bounds = [0,8];
-elseif i == 2
+elseif quadrant == 2
     theta_bounds = [-pi,0];
     thetadot_bounds = [0,8];
-elseif i == 3
+elseif quadrant == 3
     theta_bounds = [-pi,0];
     thetadot_bounds = [-8,0];
-elseif i == 4
+elseif quadrant == 4
     theta_bounds = [0,pi];
     thetadot_bounds = [-8,0];
 end
@@ -44,5 +46,5 @@ end
 % bounds = [a,b]
 % returns a random decimal within [a,b]
 function sample = random_sample(bounds)
-    sample = bounds(1) + random(bounds(2) - bounds(1));
+    sample = bounds(1) + (bounds(2) - bounds(1))*rand();
 end
