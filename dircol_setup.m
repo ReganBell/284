@@ -1,8 +1,7 @@
-function [p, traj_opt] = dircol_setup(N, T)
+function [p, traj_opt] = dircol_setup(N, T, u)
     options.replace_cylinders_with_capsules = false;
-    options.wrap_flag = [true;false]; % necessary?
     p = PlanarRigidBodyManipulator('Pendulum.urdf',options);
-    p = p.setInputLimits(-10,10);
+    p = p.setInputLimits(-u,u);
     
     traj_opt = DircolTrajectoryOptimization(p, N, [T/2 T]);
 
