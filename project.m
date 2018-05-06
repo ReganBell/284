@@ -7,14 +7,13 @@
 function [p,xtraj,utraj,v,x0] = project(xtraj_init, utraj_init)
 % create plant
 options.replace_cylinders_with_capsules = false;
-options.wrap_flag = [true;false]; % necessary?
 p = PlanarRigidBodyManipulator('Pendulum.urdf',options);
-p = p.setInputLimits(-10,10);
+p = p.setInputLimits(-5,5);
 
 N = 31  % number of knot points
-T = 2   % max duration allowed
-x0 = [pi*rand(); 10*rand()] % random start point
-xf = [pi*rand(); 10*rand()] % random goal point
+T = 3   % max duration allowed
+x0 = [-pi+2*pi*rand(); -8+16*rand()] % random start point
+xf = [-pi+2*pi*rand(); -8+16*rand()] % random goal point
 
 % initial trajectory guess
 t_init = linspace(0,T,N);
@@ -35,17 +34,19 @@ traj_opt =  DircolTrajectoryOptimization(p,N,[T/2 T]);
 
 traj_opt = traj_opt.addRunningCost(@running_cost_fun);
 traj_opt = traj_opt.addStateConstraint(ConstantConstraint(x0),1);
-traj_opt = traj_opt.addStateConstraint(ConstantConstraint(xf),N);
 traj_opt = traj_opt.setSolver('fmincon');
 traj_opt = traj_opt.setSolverOptions('fmincon','Algorithm','sqp');
+traj_opt = traj_opt.setSolverOptions('fmincon','Display','iter');
+%traj_opt = traj_opt.setSolverOptions('fmincon','MaxIter',10);
+traj_opt = traj_opt.addStateConstraint(ConstantConstraint(xf),N);
 
-% NOT NEEDED:
+% NEEDED?
 %invertedConstraint = FunctionHandleConstraint(0,0,2,@(x) final_state_con(p,x),1);
 %traj_opt = traj_opt.addStateConstraint(invertedConstraint,N);
 
 % run DIRCOL
 tic
-[xtraj,utraj,z,F,info] = traj_opt.solveTraj(t_init,traj_init);
+[xtraj,utraj,z,F,info,infeasible_constraint_name] = traj_opt.solveTraj(t_init,traj_init)
 toc
 
 % visualize trajectory
@@ -55,9 +56,14 @@ v.playback(xtraj)
 
 % extracts states along trajectory
 states = zeros(2,N);
+inputs = zeros(1,N);
 for i = 1:N
     states(:,i) = xtraj.eval(xtraj.pp.breaks(i));
+    inputs(:,i) = utraj.eval(utraj.pp.breaks(i));
 end
+
+costs = (T/(N-1)) * (inputs .^ 2);
+cost = sum(costs(1:N-1))
 
 % draw trajectory
 world_bounds_th = [-pi,pi];
@@ -89,13 +95,13 @@ end
 %   is wrapping working correctly? theta values seem to be alowed
 %       beyond [-pi, 3pi/2] - handle manually?
 
-% NOT NEEDED:
+% NEEDED?
 % x = [theta thetadot] is the state of the system
-% f is a scalar whose value is the difference between theta and pi
+% f is a scalar whose value is (theta%2pi) - pi
 % so f is zero if the constraint is satisfied
 % df is the derivative of f with respect to x
-%function [f,df] = final_state_con(obj,x)
-%  theta = x(1);
-%  f = theta - pi;
-%  df = [1 0];
-%end
+function [f,df] = final_state_con(obj,x)
+ theta = x(1);
+ f = theta - pi; % TODO: wrap to 2 pi
+ df = [1 0];
+end
