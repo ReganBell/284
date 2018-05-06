@@ -179,8 +179,6 @@ end
 % x, y are 2x1 vectors. S is the matrix which lqr distance is calculated
 % with respect to. returns the wraparound lqr distance between a and b
 function d = dist(a, b)
-    d = euclidean_distance(a, b);
-    return;
     global nn; global net;
     if nn
         d = sim(net, [a; b]);
