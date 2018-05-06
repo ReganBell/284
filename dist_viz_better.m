@@ -1,19 +1,19 @@
-function dist_comp_better
-    load('dircol_net_full_akshay_10TL.mat');
+function dist_viz_better
+    load('net808_30_20.mat');
     
     goal = [pi; 0];
     [~, S] = LQR(goal);
     
     % draw world and goal
     world_bounds_th = [-pi/2,3/2*pi];
-    world_bounds_thdot = [-5,5];
+    world_bounds_thdot = [-8,8];
     figure(1); clf; hold on;
     axis([world_bounds_th, world_bounds_thdot]);
    
     % discretize state space and get costs
-    n_theta = 10*4;
+    n_theta = 10*5;
     theta_range = linspace(world_bounds_th(1), world_bounds_th(2), n_theta);
-    n_thetadot = 10*4;
+    n_thetadot = 10*5;
     thetadot_range = linspace(world_bounds_thdot(1), world_bounds_thdot(2), n_thetadot);
     
     xs = zeros(2,n_theta*n_thetadot);
@@ -25,26 +25,31 @@ function dist_comp_better
             theta = theta_range(i);
             thetadot = thetadot_range(j);
             x = [theta; thetadot];
-            %cost = lqrdist(x, goal, S);
-            cost = nndist(x, goal, net);
+            cost = lqrdist(x, goal, S);
+            %cost = nndist(x, goal, net);
             xs(:,k) = x;
             costs(k) = cost;
         end
     end
+
+    [~,idx] = sort(costs);
+    sorted_xs = xs(:,idx);
+    x_coords = sorted_xs(1,:);
+    y_coords = sorted_xs(2,:);
+    colors = linspace(1,10,length(xs));
+    scatter(x_coords,y_coords,90,colors,'filled')
+    return;
     
     % plot points
-    max_cost = max(costs);
-    for i=1:(n_theta*n_thetadot)
-        x = xs(:,i);
-        cost = costs(i);
-        
-        hue = min(1, cost / max_cost);
-        rgb = hsv2rgb([hue 1 1]);
-        plot(x(1), x(2), 'o', 'MarkerFaceColor', rgb, 'Color', rgb, 'MarkerSize', 10);
-    end
-    
-    xs
-    costs
+%     max_cost = max(costs);
+%     for i=1:(n_theta*n_thetadot)
+%         x = xs(:,i);
+%         cost = costs(i);
+%         
+%         hue = min(1, cost / max_cost);
+%         rgb = hsv2rgb([hue 1 1]);
+%         plot(x(1), x(2), 'o', 'MarkerFaceColor', rgb, 'Color', rgb, 'MarkerSize', 10);
+%     end
 end
 
 function [K, S] = LQR(x)
@@ -56,7 +61,15 @@ function [K, S] = LQR(x)
 end
 
 function d = nndist(a, b, net)
-    d = sim(net, [b; a]);
+    %a = [wrapToPi(a(1)); a(2)];
+    %b = [wrapToPi(b(1)); b(2)];
+    d = sim(net, [a; b]);
+    if(d < 0)
+        d = sim(net, [b;a]);
+        if (d < 0)
+            d = 100;
+        end
+    end
 end
 
 % given a value for control input u, returns a function handle to a

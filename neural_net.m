@@ -1,12 +1,19 @@
-load('dircol_data.mat', 'X', 'Y')
+load('akshay-trajdata.mat', 'X', 'Y')
+X_a = X;
+Y_a = Y;
 
-setdemorandstream(491218382)
+load('regan-trajdata.mat', 'X', 'Y')
+X_r = X;
+Y_r = Y;
+
+X = [X_a X_r];
+Y = [Y_a Y_r];
 
 net = fitnet([30, 20]);
 % view(net)
 
 [net,tr] = train(net,X,Y);
-save('dircol_net', 'net');
+save('net808_30_20', 'net');
 % nntraintool
 % 
 % plotperform(tr)
@@ -14,7 +21,7 @@ save('dircol_net', 'net');
 % testX = X(:,tr.testInd);
 % testY = Y(:,tr.testInd);
 % 
-testO = net(testX);
+%testO = net(testX);
 % 
 % perf = mse(net,testT,testO)
 
