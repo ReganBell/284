@@ -1,36 +1,58 @@
 function dist_comp_better
-    load('dircol_net_full_akshay_10TL.mat');
+    load('net808_30_20.mat');
+    
+    theta_bounds = [0,pi];    % sampling bounds
+    thetadot_bounds = [0,8];   % sampling bounds
 
-    x0 = [pi*rand(); 10*rand()]
-    
-    xs = zeros(2,11);
-    for i=1:11
-        u = -6 + i;
-        [~,x] = ode45(create_odefun(u),[0 0.1], x0);
-        x = x(end,:)';
-        xs(:,i) = x;
-    end
-    
-    xf = [pi*rand(); 10*rand()]
-    [~, S] = LQR(xf);
+    K = 11
     
     N = 31;
     T = 2;
-    [p, traj_opt] = dircol_setup(N, T);
+    [p, traj_opt] = dircol_setup(N, T, 8);
     
-    dists = zeros(3,11);
-    for i=1:11
+    dists = zeros(4,11);
+    se = zeros(3, 11);
+    i = 0;
+    x0 = [random_sample(theta_bounds); random_sample(thetadot_bounds)];
+    while i <= K
         i
-        x = xs(:,i);
-        [~, ~, ~, ~, pairwise_dists] = rand_dircol(p, traj_opt, N, T, x, xf, [], []);
-        dists(1,i) = pairwise_dists(29);
-        dists(2,i) = lqrdist(x, xf, S);
-        dists(3,i) = nndist(x, xf, net);
+        xf = [random_sample(theta_bounds); random_sample(thetadot_bounds)];
+
+        [~, ~, ~, dircol_dists, success] = dircol(p, traj_opt, N, T, x0, xf);
+        if ~success
+            continue
+        else
+            i = i+1;
+        end
+        dists(1,i) = dircol_dists(30);
+        
+        [~,S] = LQR(xf);
+        dists(2,i) = lqrdist(x0, xf, S);
+        dists(3,i) = nndist(x0, xf, net);
+        dists(4,i) = euclidean_distance(x0, xf);
     end
     
-    dists
+    [~, I_dircol] = mink(dists(1, :), K)
+    [~, I_lqr] = mink(dists(2, :), K)
+    [~, I_nn] = mink(dists(3, :), K)
+    [~, I_euclid] = mink(dists(4, :), K)
+    I_rand = [1     5     6     3    12     8     2     9     4    10    11]
     
-    % TODO: add code that shows selected u for distance metric
+    tau_lqr = kendalltau(I_dircol, I_lqr)
+    tau_nn = kendalltau(I_dircol, I_nn)
+    tau_euclid = kendalltau(I_dircol, I_euclid)
+    tau_rand = kendalltau(I_dircol, I_rand)
+    
+    [~, I_dircol] = mink(dists(1, :), 5)
+    [~, I_lqr] = mink(dists(2, :), 5)
+    [~, I_nn] = mink(dists(3, :), 5)
+    [~, I_euclid] = mink(dists(4, :), 5)
+    I_rand = [1     5     6     3    12]
+    
+    tau_lqr = kendalltau(I_dircol, I_lqr)
+    tau_nn = kendalltau(I_dircol, I_nn)
+    tau_euclid = kendalltau(I_dircol, I_euclid)
+    tau_rand = kendalltau(I_dircol, I_rand);
 end
 
 function [K, S] = LQR(x)
@@ -41,31 +63,29 @@ function [K, S] = LQR(x)
     [K,S] = lqr(A, B, Q, R);
 end
 
-function d = nndist(a, b, net)
-%    X = [a; b];
-    d = sim(net, [b; a]);
-%    d2 = sim(net, [b; a]);
-%    if d1 < 0
-%        d = d2;
-%        if d2 < 0
-            
-%        end
-%    else
-%        d = d2;
-%    end
+function tau = kendalltau( order1 , order2 )
+    [ ~ , ranking1 ] = sort( order1(:)' , 2 , 'ascend' );
+    [ ~ , ranking2 ] = sort( order2(:)' , 2 , 'ascend' );
+    N = length( ranking1 );
+    [ ii , jj ] = meshgrid( 1:N , 1:N );
+    ok = find( jj(:) > ii(:) );
+    ii = ii( ok );
+    jj = jj( ok );
+    nok = length( ok );
+    sign1 = ranking1( jj ) > ranking1( ii );
+    sign2 = ranking2( jj ) > ranking2( ii );
+    tau = sum( sign1 ~= sign2 );
 end
 
-% given a value for control input u, returns a function handle to a
-% function of the form f(t,x) = f(x,u) = dxdt
-function handle = create_odefun(u)
-    handle = @odefun;
-    function dxdt = odefun(~,x)
-        theta     = x(1);
-        theta_dot = x(2);
-        dxdt    = zeros(2,1);
-        dxdt(1) = theta_dot;
-        dxdt(2) = u - (9.81 * sin(theta)) - (0.1 * theta_dot);
-    end
+function d = euclidean_distance(a, b)
+    x_diff = abs(a(1) - b(1));
+    y_diff = abs(a(2) - b(2));
+    x_diff = min(x_diff, 2*pi - x_diff);    % handle wraparound
+    d = sqrt(x_diff^2 + y_diff^2);
+end
+
+function d = nndist(a, b, net)
+    d = sim(net, [a; b]);
 end
 
 function d = lqrdist(a, b, S)
@@ -81,4 +101,8 @@ function d = lqrdist(a, b, S)
     d2 = x2' * S * x2;
     
     d = min(d1, d2);
+end
+
+function sample = random_sample(bounds)
+    sample = bounds(1) + (bounds(2) - bounds(1))*rand();
 end
