@@ -7,4 +7,5 @@ function [p, traj_opt] = dircol_setup(N, T, u)
 
     traj_opt = traj_opt.setSolver('fmincon');
     traj_opt = traj_opt.setSolverOptions('fmincon','Algorithm','sqp');
+    traj_opt = traj_opt.setSolverOptions('fmincon','MaxIter',50);
 end

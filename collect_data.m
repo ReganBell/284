@@ -1,46 +1,38 @@
-quadrant = 2;
-output_filename = sprintf('quadrant_%d.mat',quadrant);
-N = 31;         % number of knot points
-T = 2;          % max duration allowed
-K = 250;        % number of iterations
-u_limit = 5;    % input limit
+output_filename = sprintf('test.mat');
+
+N = 31;      % number of knot points
+T = 2;       % max duration allowed
+K = 1;       % number of iterations
+u_limit = 5; % input limit
+theta_bounds = [-pi,pi];    % sampling bounds
+thetadot_bounds = [-8,8];   % sampling bounds
 [p, traj_opt] = dircol_setup(N, T, u_limit);
 
-theta_bounds = [];
-thetadot_bounds = [];
-if quadrant == 1
-    theta_bounds = [0,pi];
-    thetadot_bounds = [0,8];
-elseif quadrant == 2
-    theta_bounds = [-pi,0];
-    thetadot_bounds = [0,8];
-elseif quadrant == 3
-    theta_bounds = [-pi,0];
-    thetadot_bounds = [-8,0];
-elseif quadrant == 4
-    theta_bounds = [0,pi];
-    thetadot_bounds = [-8,0];
-end
-
-x_traj = [];
-u_traj = [];
+failures = 0;
 elapsed = zeros(1, K);
 for k = 1:K
     tic;
     x0 = [random_sample(theta_bounds); random_sample(thetadot_bounds)];
     xf = [random_sample(theta_bounds); random_sample(thetadot_bounds)];
-    [x_traj, u_traj, x0, pairs, dists] = rand_dircol(p, traj_opt, N, T, x0, xf, x_traj, u_traj);
-    if exist(output_filename, 'file') ~= 2
-        X = pairs;
-        Y = dists;
-        save(output_filename, 'X', 'Y');
-    end
-    load(output_filename)
-    X = [X pairs];
-    Y = [Y dists];
+    [x_traj, u_traj, pairs, dists, success] = dircol(p, traj_opt, N, T, x0, xf);
     elapsed(k) = toc;
-    save(output_filename, 'X', 'Y', 'elapsed');
-    disp(['Trial: ', num2str(k), '/', num2str(K), ' Total time: ', num2str(sum(elapsed))]);
+    if(success)
+        if exist(output_filename, 'file') ~= 2
+            X = pairs;
+            Y = dists;
+            save(output_filename, 'X', 'Y');
+        else
+            load(output_filename)
+            X = [X pairs];
+            Y = [Y dists];
+            save(output_filename, 'X', 'Y');
+        end
+    else
+        failures = failures + 1;
+    end
+    
+    disp(['Trial: ', num2str(k), '/', num2str(K), ' Total time: ', ...
+        num2str(sum(elapsed)),' (', num2str(failures), ' failures', ')']);
 end
 
 % bounds = [a,b]
